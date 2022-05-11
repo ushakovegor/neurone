@@ -1,0 +1,3 @@
+[submodule "animus"]
+	path = animus
+	url = https://github.com/Scitator/animus.git
