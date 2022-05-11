@@ -9,13 +9,6 @@ from animus import EarlyStoppingCallback, IExperiment
 from animus.torch.callbacks import EngineCheckpointerCallback
 from animus.torch.engine import CPUEngine, DDPEngine, DPEngine, GPUEngine, XLAEngine
 
-E2E = {
-    "cpu": CPUEngine,
-    "gpu": GPUEngine,
-    "dp": DPEngine,
-    "ddp": DDPEngine,
-    "xla": XLAEngine,
-}
 
 class Experiment(IExperiment):
     def __init__(self, num_epochs: int, engine):
