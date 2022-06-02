@@ -2,7 +2,7 @@ import os
 from tqdm import tqdm
 from tqdm.notebook import tqdm as tqdm_notebook
 import torch
-from nucleidet.utils.general import write_yaml
+from neurone.utils.general import write_yaml
 
 
 class Evaluator:

@@ -1,18 +1,22 @@
 import albumentations as A
 import cv2
 import torch
+import json
 import segmentation_models_pytorch as smp
 from endoanalysis.similarity import KPSimilarity
-from nucleidet.models.heatmap.simpleHRNet.poseresnet import PoseResNet
-from nucleidet.models.heatmap.simpleHRNet.hrnet import HRNet
-from nucleidet.train.meters import mAPmetric, HeatmapL, Huber
-from nucleidet.train.schedulers import PlateauReducer
-from nucleidet.data.preprocess import BasicPreprocessor
-from nucleidet.models.detectors.heatmap import HeatmapDetector, KeypointsExtractor
-from nucleidet.models.detectors.heatmap import TrivialClassSeparator
-from nucleidet.models.detectors.heatmap import MaxClassSeparator
-from nucleidet.models.detectors.heatmap import SoftmaxClassSeparator
-from nucleidet.train.criterions import HeatmapMAE, HeatmapMSE, HeatmapHuber
+from neurone.core.train.meters import mAPmetric, HeatmapL, Huber
+from neurone.core.train.schedulers import PlateauReducer
+from neurone.data.preprocess import BasicPreprocessor
+from neurone.models.detectors.heatmap import HeatmapDetector, KeypointsExtractor
+from neurone.models.detectors.heatmap import TrivialClassSeparator
+from neurone.models.detectors.heatmap import MaxClassSeparator
+from neurone.models.detectors.heatmap import SoftmaxClassSeparator
+from neurone.core.train.criterions import HeatmapMAE, HeatmapMSE, HeatmapHuber
+
+
+def get_config(config_path):
+    config = json.load(config_path)
+    return config
 
 
 def define_metric(metric, train_val):
@@ -106,67 +110,54 @@ def define_scheduler(scheduler_config, optimizer, train_metrics, val_metrics):
     return scheduler
 
 
-def parse_heatmap_train_config(config, model, device):
-
-    model.to(device)
+def parse_train_config(config, model):
     criterion = define_criterion(config["criterion"])
     optimizer = define_optimizer(config["optimizer"], model)
 
-    train_metrics = []
-    for metric in config["train_metrics"]:
-        train_metrics.append(define_metric(metric, "train"))
+    train_metric = define_metric(config["train_metric"], "train")
 
-    val_metrics = []
-    for metric in config["val_metrics"]:
-        val_metrics.append(define_metric(metric, "val"))
+    valid_metric = define_metric(config["valid_metric"], "val")
 
     scheduler = define_scheduler(
-        config["scheduler"], optimizer, train_metrics, val_metrics
+        config["scheduler"], optimizer, train_metric, valid_metric
     )
 
-    return criterion, optimizer, scheduler, train_metrics, val_metrics
+    return criterion, optimizer, scheduler, train_metric, valid_metric
 
 
 def parse_eval_config(config):
-    eval_meters = []
-    for item in config["eval_metrics"]:
-        if item["type"] == "mAP":
-            similarity = KPSimilarity(scale=item["similarity_scale"])
-            eval_meters.append(
-                mAPmetric(
-                    similarity,
-                    class_labels=item["class_labels"],
-                    sim_thresh=item["sim_thresh"],
-                    name_group="mAP",
-                    # name="_".join(["mAP"] + [str(x) for x in item["class_labels"]]),
-                    name="_".join([str(x) for x in item["class_labels"]]),
-                )
+    eval_meters = None
+    if config["metric"]["type"] == "mAP":
+        similarity = KPSimilarity(scale=config["metric"]["similarity_scale"])
+        eval_meters = mAPmetric(
+                similarity,
+                class_labels=config["metric"]["class_labels"],
+                sim_thresh=config["metric"]["sim_thresh"],
+                name_group="mAP",
+                # name="_".join(["mAP"] + [str(x) for x in item["class_labels"]]),
+                name="_".join([str(x) for x in config["metric"]["class_labels"]]),
             )
-        else:
-            raise Exception("Unknown meter type in eval: %s" % item["type"])
+    else:
+        raise Exception("Unknown meter type in eval: %s" % config["metric"]["type"])
 
     return eval_meters
 
 
-def detector_from_config(config):
+def model_from_config(config):
 
     if (
         len(set(config["class_labels_map"].values()))
-        != config["heatmap_model_kwargs"]["classes"]
+        != config["model_kwargs"]["classes"]
     ):
         raise ValueError(
             "Number of classes is not the same as the number of values in the class_labels_map."
         )
-    if config["heatmap_model_type"] == "HRNet":
-        model_type = HRNet
-    elif config["heatmap_model_type"] == "PoseResNet":
-        model_type = PoseResNet
-    elif config["heatmap_model_type"] == "Unet":
+    if config["model_type"] == "Unet":
         model_type = smp.Unet
-    elif config["heatmap_model_type"] == "Unet++":
+    elif config["model_type"] == "Unet++":
         model_type = smp.UnetPlusPlus
     else:
-        raise Exception("Unknown model type: %s" % config["heatmap_model_type"])
+        raise Exception("Unknown model type: %s" % config["model_type"])
 
     if config["class_separator"] is None:
         class_separator = TrivialClassSeparator()
@@ -177,13 +168,13 @@ def detector_from_config(config):
     else:
         raise Exception("Unknown class separator: %s" % config["class_separator"])
 
-    model = model_type(**config["heatmap_model_kwargs"])
+    model = model_type(**config["model_kwargs"])
 
     keypoints_extractor = KeypointsExtractor(
         min_peak_value=config["min_peak_value"],
         pooling_scale=config["pool_scale"],
         supression_range=config["supression_range"],
-        out_image_shape=config["image_size"],
+        out_image_shape=config["input_shape"],
     )
     detector = HeatmapDetector(
         prerprocessor=BasicPreprocessor(),
@@ -192,7 +183,7 @@ def detector_from_config(config):
         keypoints_extractor=keypoints_extractor,
     )
 
-    return detector
+    return model #FIXME to detector
 
 
 def define_extrapolation_mode(extrapolation_mode):

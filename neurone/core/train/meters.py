@@ -1,7 +1,7 @@
 import warnings
 import numpy as np
-from nucleidet.evaluation.metrics import compose_tp_labels
-from nucleidet.evaluation.metrics import avg_precisions_from_composed
+from neurone.core.evaluation.metrics import compose_tp_labels
+from neurone.core.evaluation.metrics import avg_precisions_from_composed
 
 
 class CumulativeMetric:

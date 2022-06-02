@@ -7,10 +7,10 @@ import torch
 from torch.utils.data import DataLoader
 from bayes_opt import BayesianOptimization
 from endoanalysis.similarity import KPSimilarity
-from nucleidet.data.datasets import HeatmapModelDataset
-from nucleidet.data.datasets import Precompution, PrecomputedDataset
-from nucleidet.train.meters import mAPmetric
-from nucleidet.utils.general import write_yaml, load_yaml
+from neurone.data.datasets import HeatmapModelDataset
+from neurone.data.datasets import Precompution, PrecomputedDataset
+from neurone.core.train.meters import mAPmetric
+from neurone.utils.general import write_yaml, load_yaml
 
 
 class KeypointsExtractorTrainer:

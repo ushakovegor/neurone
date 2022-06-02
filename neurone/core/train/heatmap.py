@@ -6,8 +6,8 @@ from tqdm import tqdm, tqdm_notebook
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
-from nucleidet.train.utils import weight_init, make_checkpoint
-from nucleidet.utils.general import makedir_overwrite, write_yaml
+from neurone.core.train.utils import weight_init, make_checkpoint
+from neurone.utils.general import makedir_overwrite, write_yaml
 
 
 class HeatmapTrainer:

@@ -6,15 +6,15 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import numpy as np
 from endoanalysis.datasets import parse_master_yaml
-from nucleidet.utils.configs import detector_from_config, albumentations_from_config
-from nucleidet.data.datasets import Precompution, PrecomputedDataset
-from nucleidet.utils.configs import parse_heatmap_train_config, parse_eval_config
-from nucleidet.data.datasets import HeatmapsDataset, ConcatCollaterDataset, SubsetCollater
-from nucleidet.train.heatmap import HeatmapTrainer
-from nucleidet.train.extractor import KeypointsExtractorTrainer
-from nucleidet.evaluation.evaluator import Evaluator
-from nucleidet.utils.general import makedir_overwrite, load_yaml, write_yaml
-from nucleidet.data.splits import split_trainval_ids
+from neurone.utils.configs import model_from_config, albumentations_from_config
+from neurone.data.datasets import Precompution, PrecomputedDataset
+from neurone.utils.configs import parse_train_config, parse_eval_config
+from neurone.data.datasets import HeatmapsDataset, ConcatCollaterDataset, SubsetCollater
+from neurone.core.train.heatmap import HeatmapTrainer
+from neurone.core.train.extractor import KeypointsExtractorTrainer
+from neurone.core.evaluation.evaluator import Evaluator
+from neurone.utils.general import makedir_overwrite, load_yaml, write_yaml
+from neurone.data.splits import split_trainval_ids
 
 
 def compose_split_check(model_config, split_info, precomp=False):
@@ -53,15 +53,15 @@ def get_heatmaps_dataset(master_yaml_path, config):
         master_yaml["images_lists"],
         master_yaml["labels_lists"],
         class_labels_map=config["model"]["class_labels_map"],
-        sigma=config["train"]["heatmaps"]["heatmaps_sigma"],
+        sigma=config["data"]["heatmaps_sigma"],
         augs_list=augs_list,
-        heatmaps_shape=config["model"]["heatmaps_shape"],
+        heatmaps_shape=config["data"]["image_shape"],
         normalization={
-            "mean": config["model"]["norm_mean"],
-            "std": config["model"]["norm_std"],
+            "mean": config["data"]["norm_mean"],
+            "std": config["data"]["norm_std"],
         },
-        model_in_channels=config["model"]["heatmap_model_kwargs"]["in_channels"],
-        resize_to=config["model"]["image_size"],
+        model_in_channels=config["model"]["model_kwargs"]["in_channels"],
+        resize_to=config["model"]["input_shape"],
     )
 
 
@@ -79,7 +79,7 @@ def single_trainval_run(
 
 
     
-    detector = detector_from_config(config["model"])
+    detector = model_from_config(config["model"])
 
     (
         criterion,
@@ -87,7 +87,7 @@ def single_trainval_run(
         scheduler,
         train_metrics,
         val_metrics,
-    ) = parse_heatmap_train_config(
+    ) = parse_train_config(
         config["train"]["heatmaps"],
         detector.heatmap_model,
         device,
@@ -167,17 +167,17 @@ def single_trainval_run(
     evaluator.eval()
 
 
-def compose_split_datasets(config, split_info, split_dir):
+def compose_split_datasets(config):
 
-    if "is_precomp" in split_info:
-        precomputed = split_info["is_precomp"]
+    if "is_precomp" in config["data"]["split_info"]:
+        precomputed = config["data"]["split_info"]["is_precomp"]
     else:
         precomputed = False
 
     if precomputed:
-        split_check = compose_split_check(config, split_info, precomp=precomputed)
-        if split_check != split_info:
-            diff = DeepDiff(split_check, split_info, verbose_level=1)["values_changed"]
+        split_check = compose_split_check(config["data"], config["data"]["split_info"], precomp=precomputed)
+        if split_check != config["data"]["split_info"]:
+            diff = DeepDiff(split_check, config["data"]["split_info"], verbose_level=1)["values_changed"]
             diff_str = (
                 str(diff)
                 .replace("new_value", "kfold_info")
@@ -186,19 +186,19 @@ def compose_split_datasets(config, split_info, split_dir):
             logging.error(diff_str)
             raise ValueError("Data check not passed in precomputed dataset.")
 
-    if split_info["split_type"] == "kfold":
-        subdirs = ["fold_%i" % x for x in range(split_info["num_folds"])]
+    if config["data"]["split_info"]["split_type"] == "kfold":
+        subdirs = ["fold_%i" % x for x in range(config["data"]["split_info"]["num_folds"])]
     else:
-        subdirs = ["train", "val"]
+        subdirs = ["train", "valid"]
 
     datasets = {}
     for subdir_name in subdirs:
         if precomputed:
-            subdir_yaml_path = os.path.join(split_dir, subdir_name, "precomp_data.yaml")
+            subdir_yaml_path = os.path.join(config["data"]["dataset_dir"], subdir_name, "precomp_data.yaml")
             dataset = PrecomputedDataset(subdir_yaml_path)
         else:
             subdir_yaml_path = os.path.join(
-                split_dir, subdir_name, ".".join([subdir_name, "yaml"])
+                config["data"]["dataset_dir"], subdir_name, ".".join([subdir_name, "yaml"])
             )
             dataset = get_heatmaps_dataset(subdir_yaml_path, config)
         datasets[subdir_name] = dataset

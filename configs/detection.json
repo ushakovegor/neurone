@@ -1,0 +1,126 @@
+{
+  "model": {
+    "model_type": "Unet",
+    "model_kwargs": {
+      "encoder_name": "resnet18",
+      "encoder_depth": 5,
+      "encoder_weights": null,
+      "decoder_channels": [
+        256,
+        126,
+        64,
+        32,
+        16
+      ],
+      "decoder_use_batchnorm": false,
+      "decoder_attention_type": null,
+      "in_channels": 3,
+      "classes": 3,
+      "activation": null
+    },
+    "class_separator": null,
+    "class_labels_map": {
+      "0": 0,
+      "1": 1,
+      "2": 2
+    },
+    "input_shape": [
+      512,
+      512
+    ],
+    "pool_scale": 13,
+    "min_peak_value": 0.2,
+    "supression_range": 7
+  },
+  "data": {
+    "split_info": null,
+    "model_dir": "./checkpoints",
+    "dataset_dir": "/Users/ushakov/projects/data/trainval",
+    "workers": 2,
+    "heatmaps_sigma": 7.62,
+    "norm_mean": [
+      170,
+      154,
+      144
+    ],
+    "norm_std": [
+      63,
+      69,
+      71
+    ],
+    "image_shape": [
+      512,
+      512
+    ],
+    "overwrite": false
+  },
+  "train": {
+    "batch_size": 16,
+    "num_epochs": 5,
+    "log_every": 1,
+    "checkpoint_every": 5,
+    "train_size": 0.8,
+    "augmentations": {
+      "border_mode": "BORDER_REFLECT_101",
+      "mosiac_bbox_size_thresh": 0.1,
+      "noise_var": 0.1,
+      "p_flip_hor": 0.8,
+      "p_flip_vert": 0.8,
+      "p_hsv": 0.2,
+      "p_mixup": 0,
+      "p_mosaic": 0,
+      "p_noise": 0.7,
+      "p_perspective": 0.2,
+      "p_rotate": 0.2,
+      "p_scale": 0.2,
+      "p_shift": 0.2,
+      "perspective_factor": 0.01,
+      "rotate_angle": 1,
+      "scale_factor": 0.05,
+      "shift_factor": 0.02
+    },
+    "criterion": {
+      "type": "Huber",
+      "class_weights": [
+        4,
+        16,
+        1
+      ],
+      "normalize_weights": false,
+      "delta": 2
+    },
+    "train_metric": {
+      "type": "MSE"
+    },
+    "valid_metric": {
+      "type": "MSE"
+    },
+    "optimizer": {
+      "type": "Adam",
+      "kwargs": {
+        "lr": 0.001,
+        "betas": [
+          0.9,
+          0.999
+        ],
+        "weight_decay": 0,
+        "amsgrad": true
+      }
+    },
+    "scheduler": {
+      "type": "no_scheduler"
+    }
+  },
+  "eval": {
+    "checkpoints": "best",
+    "metric": {
+      "type": "mAP",
+      "similarity_scale": 15.24,
+      "sim_thresh": 0.5,
+      "class_labels": [
+        0,
+        1
+      ]
+    }
+  }
+}
